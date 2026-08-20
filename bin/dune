@@ -1,0 +1,4 @@
+(executable
+ (public_name RedisCloneOCaml)
+ (name main)
+ (libraries RedisCloneOCaml))
