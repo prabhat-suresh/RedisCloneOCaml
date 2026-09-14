@@ -44,6 +44,26 @@ let rec parse_command buffer =
       Arr (List.rev @@ List.init count ~f:(fun _ -> parse_command buffer))
   | c -> failwith (Printf.sprintf "Unknown RESP type prefix: %C" c)
 
+let parse_ttl = function
+  | BulkString (Some "PX") :: BulkString (Some ms) :: _ ->
+      Some (Float.of_int (Int.of_string ms) /. 1000.0)
+  | BulkString (Some "EX") :: BulkString (Some s) :: _ ->
+      Some (Float.of_int (Int.of_string s))
+  | _ -> None
+
 let reply = function
+  | Arr [ BulkString (Some "PING") ] -> SimpleString "PONG"
   | Arr [ BulkString (Some "ECHO"); (BulkString _ as msg) ] -> msg
+  | Arr
+      (BulkString (Some "SET")
+      :: BulkString (Some key)
+      :: BulkString (Some value)
+      :: rest) ->
+      let ttl = parse_ttl rest in
+      Store.set key value ~ttl;
+      SimpleString "OK"
+  | Arr [ BulkString (Some "GET"); BulkString (Some key) ] -> (
+      match Store.get key with
+      | Some v -> BulkString (Some v)
+      | None -> BulkString None)
   | _ -> SimpleString "PONG"

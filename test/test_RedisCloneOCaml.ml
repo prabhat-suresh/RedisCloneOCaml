@@ -19,9 +19,7 @@ let%test_unit "to_string: negative integer" =
   [%test_eq: string] (to_string (Integer (-1))) ":-1\r\n"
 
 let%test_unit "to_string: bulk string" =
-  [%test_eq: string]
-    (to_string (BulkString (Some "hello")))
-    "$5\r\nhello\r\n"
+  [%test_eq: string] (to_string (BulkString (Some "hello"))) "$5\r\nhello\r\n"
 
 let%test_unit "to_string: empty bulk string" =
   [%test_eq: string] (to_string (BulkString (Some ""))) "$0\r\n\r\n"
@@ -69,7 +67,9 @@ let%test_unit "parse: empty array" =
   [%test_eq: Resp.t] (parse "*0\r\n") (Arr [])
 
 let%test_unit "round trip: simple string" =
-  [%test_eq: Resp.t] (parse (to_string (SimpleString "hello"))) (SimpleString "hello")
+  [%test_eq: Resp.t]
+    (parse (to_string (SimpleString "hello")))
+    (SimpleString "hello")
 
 let%test_unit "round trip: error" =
   [%test_eq: Resp.t] (parse (to_string (Err "ERR nope"))) (Err "ERR nope")
@@ -83,9 +83,7 @@ let%test_unit "round trip: bulk string" =
     (BulkString (Some "hello world"))
 
 let%test_unit "round trip: null bulk string" =
-  [%test_eq: Resp.t]
-    (parse (to_string (BulkString None)))
-    (BulkString None)
+  [%test_eq: Resp.t] (parse (to_string (BulkString None))) (BulkString None)
 
 let%test_unit "round trip: empty array" =
   [%test_eq: Resp.t] (parse (to_string (Arr []))) (Arr [])
@@ -103,7 +101,42 @@ let%test_unit "reply: ECHO with null bulk string" =
   [%test_eq: Resp.t] (reply cmd) (BulkString None)
 
 let%test_unit "reply: unknown command returns PONG" =
-  [%test_eq: Resp.t] (reply (Arr [ BulkString (Some "PING") ])) (SimpleString "PONG")
+  [%test_eq: Resp.t]
+    (reply (Arr [ BulkString (Some "PING") ]))
+    (SimpleString "PONG")
 
 let%test_unit "reply: bare simple string returns PONG" =
   [%test_eq: Resp.t] (reply (SimpleString "hello")) (SimpleString "PONG")
+
+let%test_unit "reply: SET returns OK" =
+  let cmd =
+    Arr
+      [ BulkString (Some "SET"); BulkString (Some "k"); BulkString (Some "v") ]
+  in
+  [%test_eq: Resp.t] (reply cmd) (SimpleString "OK")
+
+let%test_unit "reply: SET then GET round trip" =
+  let set =
+    Arr
+      [ BulkString (Some "SET"); BulkString (Some "k"); BulkString (Some "v") ]
+  in
+  let get = Arr [ BulkString (Some "GET"); BulkString (Some "k") ] in
+  [%test_eq: Resp.t] (reply set) (SimpleString "OK");
+  [%test_eq: Resp.t] (reply get) (BulkString (Some "v"))
+
+let%test_unit "reply: SET then GET with TTL" =
+  let set =
+    Arr
+      [
+        BulkString (Some "SET");
+        BulkString (Some "k");
+        BulkString (Some "v");
+        BulkString (Some "PX");
+        BulkString (Some "1");
+      ]
+  in
+  [%test_eq: Resp.t] (reply set) (SimpleString "OK")
+
+let%test_unit "reply: GET missing key returns null bulk string" =
+  let cmd = Arr [ BulkString (Some "GET"); BulkString (Some "missing") ] in
+  [%test_eq: Resp.t] (reply cmd) (BulkString None)
