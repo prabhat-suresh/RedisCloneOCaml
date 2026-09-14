@@ -1,3 +1,7 @@
-(test
+(library
  (name test_RedisCloneOCaml)
- (libraries RedisCloneOCaml))
+ (libraries RedisCloneOCaml eio_main)
+ (inline_tests
+  (backend ppx_inline_test))
+ (preprocess
+  (pps ppx_jane)))

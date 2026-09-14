@@ -1,2 +1,5 @@
 (library
- (name RedisCloneOCaml))
+ (name RedisCloneOCaml)
+ (libraries base eio_main)
+ (preprocess
+  (pps ppx_jane)))
